@@ -3,3 +3,5 @@ steps:
   args: ['build', '-t', 'gcr.io/carbide-theme-428210-v5/ml_classification', '.']
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push','gcr.io/carbide-theme-428210-v5/ml_classification' ]
+options:
+  logging: CLOUD_LOGGING_ONLY

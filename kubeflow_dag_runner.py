@@ -16,7 +16,7 @@ SERVING_DIR = 'gs://singular_willow_pipeline/models'
 beam_pipeline_args = [
     "--runner=DataflowRunner",
     "--experiments=shuffle_mode=auto",
-    "--project=singular-willow-339022",
+    "--project=carbide-theme-428210-v5",
     f"--temp_location={temp}",
     f"--region=us-central1",
     "--disk_size_gb=50"
@@ -26,7 +26,7 @@ beam_pipeline_args = [
 def run():
     
     metadata_config = kubeflow_dag_runner.get_default_kubeflow_metadata_config()
-    tfx_image = 'gcr.io/singular-willow-339022/mlimage'
+    tfx_image = 'gcr.io/carbide-theme-428210-v5/mlimage'
     runner_config = kubeflow_dag_runner.KubeflowDagRunnerConfig(
         kubeflow_metadata_config=metadata_config, tfx_image=tfx_image
     )

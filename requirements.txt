@@ -1,12 +1,12 @@
 matplotlib
 fastapi
 uvicorn
-tfx
+tfx==1.15.0
 python-snappy
 numpy 
 pandas
-kfp 
+kfp==2.1.1
 sympy
-sklearn
-joblib
-imbalanced-learn
+scikit-learn==1.5.0
+joblib==1.4.2
+imbalanced-learn==0.12.3

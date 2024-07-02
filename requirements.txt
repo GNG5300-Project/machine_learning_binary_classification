@@ -8,6 +8,6 @@ numpy
 pandas
 kfp 
 sympy
-scikit-learn
+scikit-learn==1.5.0
 joblib
 imbalanced-learn

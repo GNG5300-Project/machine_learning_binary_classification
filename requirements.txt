@@ -5,8 +5,11 @@ tfx==1.15.0
 python-snappy
 numpy 
 pandas
-kfp==2.1.1
+kfp==2.4.0
 sympy
 scikit-learn==1.5.0
 joblib==1.4.2
 imbalanced-learn==0.12.3
+google-cloud-aiplatform
+google-cloud-pipeline-components==2.6.0
+keras_tuner==1.4.4

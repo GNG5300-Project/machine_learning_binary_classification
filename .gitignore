@@ -1,3 +1,5 @@
 *.json
 *.gz
 .env
+__pycache*
+.venv

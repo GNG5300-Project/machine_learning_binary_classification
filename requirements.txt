@@ -17,3 +17,4 @@ tensorflow_transform
 tensorflow==2.15.1
 tensorflow-data-validation==1.15.1
 tensorflow_metadata
+tensorflow_datasets

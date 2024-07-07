@@ -1,45 +1,36 @@
-import os
 import time
 from absl import logging
-from typing import NamedTuple
-
 from google.cloud import aiplatform
 from google.oauth2 import service_account
 from tfx.orchestration.kubeflow.v2 import kubeflow_v2_dag_runner
-from pipeline import create_pipeline
-
-from kfp.dsl import pipeline, component, OutputPath, InputPath, Output, Metrics
-from kfp import compiler
-
-from google_cloud_pipeline_components.v1.model import ModelUploadOp
-
-# Define constants
-SERVICE_ACCOUNT_FILE = 'gcp_key.json'
-PROJECT_ID = 'carbide-theme-428210-v5'
-PIPELINE_ROOT = 'gs://vertex-ai-train-393/base/'
-PIPELINE_METADATA = 'gs://vertex-ai-train-393/metadata/'
-DATA_PATH = 'gs://vertex-ai-train-393/data/'
-SERVING_DIR = 'gs://vertex-ai-train-393/models/'
-MODULES_DIR = 'gs://vertex-ai-train-393/modules/'
-REGION = 'us-central1'
+from pipelines.pipeline_gcp import create_pipeline
+import read_env
 
 # Generate unique pipeline name using current time
 suffix = int(time.time())
-PIPELINE_NAME = f'loan-default-prediction-{suffix}'
+PIPELINE_NAME = read_env.PIPELINE_NAME_PREFIX + str(suffix)
+SERVICE_ACCOUNT_FILE = read_env.SERVICE_ACCOUNT_FILE
+PROJECT_ID = read_env.PROJECT_ID
+PIPELINE_ROOT = read_env.PIPELINE_ROOT
+PIPELINE_METADATA = read_env.PIPELINE_METADATA
+DATA_PATH = read_env.DATA_PATH
+SERVING_DIR = read_env.SERVING_DIR
+MODULES_DIR = read_env.MODULES_DIR
+REGION = read_env.REGION
+
 # Load credentials
-credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE)
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE)
 # Initialize the Vertex AI client with the loaded credentials
 print('credentials successfully retrieved')
 aiplatform.init(credentials=credentials, project=PROJECT_ID, location=REGION)
 
 
 def run():
-    # Configure metadata
-    # metadata_config = kubeflow_v2_dag_runner.get_default_kubeflow_metadata_config()
-
     # Define TFX image (optional)
-    tfx_image = 'gcr.io/carbide-theme-428210-v5/ml_classification'
-    runner_config = kubeflow_v2_dag_runner.KubeflowV2DagRunnerConfig()
+    tfx_image = 'gcr.io/carbide-theme-428210-v5/ml_classification:latest'
+    runner_config = kubeflow_v2_dag_runner.KubeflowV2DagRunnerConfig(
+        default_image=tfx_image)
 
     # Run Kubeflow DagRunner with the created pipeline
     kubeflow_v2_dag_runner.KubeflowV2DagRunner(config=runner_config, output_filename=PIPELINE_NAME+".json").run(
@@ -57,11 +48,9 @@ if __name__ == '__main__':
     logging.set_verbosity(logging.INFO)
     run()
 
-    # Create and run a pipeline job in Vertex AI
+    # Create and run a pipeline job in GCP Vertex AI
     job = aiplatform.PipelineJob(
-        template_path=PIPELINE_NAME + ".json",
+        template_path='./template/' + PIPELINE_NAME + ".json",
         display_name=PIPELINE_NAME
     )
     job.run(sync=False)
-
-# tfx pipeline create --pipeline-path=kubeflow_dag_runner.py --endpoint=https://6c04783b0063a2f7-dot-us-central1.pipelines.googleusercontent.com/

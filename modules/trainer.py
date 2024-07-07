@@ -1,20 +1,18 @@
-
 # Define imports
-from keras_tuner.engine import base_tuner
-import keras_tuner as kt
-from typing import List
-from absl import logging
-from typing import NamedTuple, Dict, Text, Any
-from tfx.components.trainer.fn_args_utils import FnArgs, DataAccessor
 import tensorflow as tf
-import tfx
 import tensorflow_transform as tft
-import keras_tuner
 from tensorflow import keras
-from tfx_bsl.public import tfxio
 from tensorflow_metadata.proto.v0 import schema_pb2
+from tfx.components.trainer.fn_args_utils import FnArgs, DataAccessor
+from tfx_bsl.public import tfxio
+from typing import List
+import logging
+import keras_tuner
+from absl import logging
+import numpy as np
 
 _BATCH_SIZE = 128
+_TENSOR_BOARD_LOG_DIR = 'gs://vertex-ai-train-393/tb/'
 
 CATEGORICAL_COLUMNS = [
     'Education', 'EmploymentType', 'MaritalStatus',
@@ -44,31 +42,24 @@ def _input_fn(file_pattern: List[str],
               data_accessor: DataAccessor,
               schema: schema_pb2.Schema,
               batch_size: int = 200) -> tf.data.Dataset:
-
-    return data_accessor.tf_dataset_factory(
+    processed = data_accessor.tf_dataset_factory(
         file_pattern,
         tfxio.TensorFlowDatasetOptions(
             batch_size=batch_size, label_key=transformed_name(LABEL_KEY)),
         schema).repeat()
+    return processed
 
 
 def _get_hyperparameters() -> keras_tuner.HyperParameters:
     """Returns hyperparameters for building Keras model."""
     hp = keras_tuner.HyperParameters()
-    # Defines search space.
+    # Define search space.
     hp.Choice('learning_rate', [1e-5, 1e-4, 1e-3, 1e-2], default=1e-2)
-    hp.Int('num_layers', 1, 4, default=2)
+    hp.Int('hidden_layers', min_value=1, max_value=4, default=1)
     return hp
 
 
 def _build_keras_model(hparams: keras_tuner.HyperParameters) -> tf.keras.Model:
-    # The model below is built with Functional API, please refer to
-    # https://www.tensorflow.org/guide/keras/overview for all API options.
-    num_hidden_layers = hparams.Int(
-        'hidden_layers', min_value=1, max_value=5, default=1)
-    hp_learning_rate = hparams.Choice('learning_rate', values=[
-        1e-2, 1e-3, 1e-4], default=1e-3)
-
     input_numeric = [
         tf.keras.layers.Input(name=transformed_name(colname), shape=(1,), dtype=tf.float32) for colname in NUMERICAL_COLUMNS
     ]
@@ -79,10 +70,14 @@ def _build_keras_model(hparams: keras_tuner.HyperParameters) -> tf.keras.Model:
 
     input_layers = input_numeric + input_categorical
 
-    input_numeric = tf.keras.layers.concatenate(input_numeric)
-    input_categorical = tf.keras.layers.concatenate(input_categorical)
+    input_numeric_concat = tf.keras.layers.concatenate(input_numeric)
+    input_categorical_concat = tf.keras.layers.concatenate(input_categorical)
 
-    deep = tf.keras.layers.concatenate([input_numeric, input_categorical])
+    deep = tf.keras.layers.concatenate(
+        [input_numeric_concat, input_categorical_concat])
+
+    num_hidden_layers = hparams.get('hidden_layers')
+    hp_learning_rate = hparams.get('learning_rate')
 
     for i in range(num_hidden_layers):
         num_nodes = hparams.Int('unit'+str(i), min_value=8,
@@ -110,18 +105,13 @@ def _build_keras_model(hparams: keras_tuner.HyperParameters) -> tf.keras.Model:
 
 def _get_tf_examples_serving_signature(model, tf_transform_output):
     """Returns a serving signature that accepts `tensorflow.Example`."""
-
-    # We need to track the layers in the model in order to save it.
-    # TODO(b/162357359): Revise once the bug is resolved.
     model.tft_layer_inference = tf_transform_output.transform_features_layer()
 
     @tf.function(input_signature=[
         tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')
     ])
     def serve_tf_examples_fn(serialized_tf_example):
-        """Returns the output to be used in the serving signature."""
         raw_feature_spec = tf_transform_output.raw_feature_spec()
-        # Remove label feature since these will not be present at serving time.
         raw_feature_spec.pop(LABEL_KEY)
         raw_features = tf.io.parse_example(
             serialized_tf_example, raw_feature_spec)
@@ -129,8 +119,6 @@ def _get_tf_examples_serving_signature(model, tf_transform_output):
         logging.info('serve_transformed_features = %s', transformed_features)
 
         outputs = model(transformed_features)
-        # TODO(b/154085620): Convert the predicted labels from the model using a
-        # reverse-lookup (opposite of transform.py).
         return {'outputs': outputs}
 
     return serve_tf_examples_fn
@@ -138,16 +126,12 @@ def _get_tf_examples_serving_signature(model, tf_transform_output):
 
 def _get_transform_features_signature(model, tf_transform_output):
     """Returns a serving signature that applies tf.Transform to features."""
-
-    # We need to track the layers in the model in order to save it.
-    # TODO(b/162357359): Revise once the bug is resolved.
     model.tft_layer_eval = tf_transform_output.transform_features_layer()
 
     @tf.function(input_signature=[
         tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')
     ])
     def transform_features_fn(serialized_tf_example):
-        """Returns the transformed_features to be fed as input to evaluator."""
         raw_feature_spec = tf_transform_output.raw_feature_spec()
         raw_features = tf.io.parse_example(
             serialized_tf_example, raw_feature_spec)
@@ -156,6 +140,16 @@ def _get_transform_features_signature(model, tf_transform_output):
         return transformed_features
 
     return transform_features_fn
+
+
+def dataset_to_numpy(dataset):
+    features, labels = [], []
+
+    for feature, label in dataset.as_numpy_iterator():
+        features.append(feature)
+        labels.append(label)
+
+    return np.array(features), np.array(labels)
 
 
 # TFX Trainer will call this function.
@@ -180,9 +174,6 @@ def run_fn(fn_args: FnArgs):
         hparams = keras_tuner.HyperParameters.from_config(
             fn_args.hyperparameters)
     else:
-        # This is a shown case when hyperparameters is decided and Tuner is removed
-        # from the pipeline. User can also inline the hyperparameters directly in
-        # _build_keras_model.
         hparams = _get_hyperparameters()
     logging.info('HyperParameters for training: %s', hparams.get_config())
 
@@ -190,8 +181,7 @@ def run_fn(fn_args: FnArgs):
     with mirrored_strategy.scope():
         model = _build_keras_model(hparams)
 
-    # Write logs to path
-    tb_log_dir = 'gs://vertex-ai-train-393/tb/'
+    tb_log_dir = _TENSOR_BOARD_LOG_DIR
     tensorboard_callback = tf.keras.callbacks.TensorBoard(
         log_dir=tb_log_dir, update_freq='epoch')
 
@@ -200,13 +190,15 @@ def run_fn(fn_args: FnArgs):
         steps_per_epoch=fn_args.train_steps,
         validation_data=eval_dataset,
         validation_steps=fn_args.eval_steps,
-        callbacks=[tensorboard_callback])
+        callbacks=[tensorboard_callback],
+        class_weight={0: 0.5681818181818182, 1: 4.166666666666667}
+    )
 
     signatures = {
         'serving_default':
             _get_tf_examples_serving_signature(model, tf_transform_output),
         'transform_features':
-            _get_transform_features_signature(model, tf_transform_output),
+            _get_transform_features_signature(model, tf_transform_output)
     }
     model.save(fn_args.serving_model_dir,
                save_format='tf', signatures=signatures)

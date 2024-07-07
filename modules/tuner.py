@@ -1,11 +1,12 @@
 # Define imports
-
 from keras_tuner.engine import base_tuner
 import kerastuner as kt
 from typing import NamedTuple, Dict, Text, Any
 from tfx.components.trainer.fn_args_utils import FnArgs
 import tensorflow as tf
 import tensorflow_transform as tft
+import numpy as np
+
 
 CATEGORICAL_COLUMNS = [
     'Education', 'EmploymentType', 'MaritalStatus',
@@ -100,39 +101,38 @@ def model_builder(hp):
     return model
 
 
+def flatten_dataset(dataset):
+    flat_dataset = dataset.flat_map(
+        lambda x: tf.data.Dataset.from_tensor_slices(x))
+    return flat_dataset
+
+
 def tuner_fn(fn_args: FnArgs) -> TunerFnResult:
-    # tuner = kt.Hyperband(
-    #     model_builder,
-    #     objective='val_binary_accuracy',
-    #     max_epochs=2,
-    #     factor=2,
-    #     hyperband_iterations=4,
-    #     max_retries_per_trial=2,
-    #     directory=fn_args.working_dir,
-    #     project_name='kt_hyperband'
-    # )
-    tuner = kt.RandomSearch(
+    tuner = kt.Hyperband(
         model_builder,
         objective='val_binary_accuracy',
-        max_trials=2,  # Specify the number of trials
-        executions_per_trial=2,
+        max_epochs=150,
+        factor=10,
+        hyperband_iterations=10,
+        max_retries_per_trial=10,
         directory=fn_args.working_dir,
-        project_name='kt_random_search'
+        project_name='kt_hyperband'
     )
 
     # load transform output
     tf_transform_output = tft.TFTransformOutput(fn_args.transform_graph_path)
 
-    train_set = _input_fn(fn_args.train_files, tf_transform_output, 1)
-    val_set = _input_fn(fn_args.eval_files, tf_transform_output, 1)
+    train_dataset = _input_fn(fn_args.train_files, tf_transform_output, 1)
+    val_data_set = _input_fn(fn_args.eval_files, tf_transform_output, 1)
 
     return TunerFnResult(
         tuner=tuner,
         fit_kwargs={
             "callbacks": [stop_early],
-            "x": train_set,
-            "validation_data": val_set,
+            "x": train_dataset,
+            "validation_data": val_data_set,
             "steps_per_epoch": fn_args.train_steps,
             "validation_steps": fn_args.eval_steps,
+            "class_weight": {0: 0.5681818181818182, 1: 4.166666666666667}
         }
     )

@@ -108,15 +108,22 @@ def flatten_dataset(dataset):
 
 
 def tuner_fn(fn_args: FnArgs) -> TunerFnResult:
-    tuner = kt.Hyperband(
+    # tuner = kt.Hyperband(
+    #     model_builder,
+    #     objective='val_binary_accuracy',
+    #     max_epochs=5,
+    #     factor=2,
+    #     directory=fn_args.working_dir,
+    #     project_name='kt_hyperband'
+    # )
+
+    tuner = kt.RandomSearch(
         model_builder,
         objective='val_binary_accuracy',
-        max_epochs=150,
-        factor=10,
-        hyperband_iterations=10,
-        max_retries_per_trial=10,
+        max_trials=50,  # Specify the number of trials
+        executions_per_trial=5,
         directory=fn_args.working_dir,
-        project_name='kt_hyperband'
+        project_name='kt_random_search'
     )
 
     # load transform output

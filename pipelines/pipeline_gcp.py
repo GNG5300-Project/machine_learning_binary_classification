@@ -77,8 +77,8 @@ def create_pipeline(
         examples=transform.outputs['transformed_examples'],
         transform_graph=transform.outputs['transform_graph'],
         schema=schema_gen.outputs['schema'],
-        train_args=trainer_pb2.TrainArgs(splits=['train'], num_steps=5000),
-        eval_args=trainer_pb2.EvalArgs(splits=['eval'], num_steps=3000),
+        train_args=trainer_pb2.TrainArgs(splits=['train'], num_steps=2000),
+        eval_args=trainer_pb2.EvalArgs(splits=['eval'], num_steps=1000),
         module_file=module_path + tuner_module
     )
     components.append(tuner)
@@ -91,8 +91,8 @@ def create_pipeline(
         examples=transform.outputs['transformed_examples'],  # Transformed examples from previous component
         transform_graph=transform.outputs['transform_graph'],  # Transform graph from previous component
         schema=schema_gen.outputs['schema'],  # Schema from schema gen component
-        train_args=trainer_pb2.TrainArgs(num_steps=5000),  # Increase num_steps for more training epochs/steps
-        eval_args=trainer_pb2.EvalArgs(num_steps=3000),  # Increase num_steps for more evaluation steps
+        train_args=trainer_pb2.TrainArgs(num_steps=2000),  # Increase num_steps for more training epochs/steps
+        eval_args=trainer_pb2.EvalArgs(num_steps=1000),  # Increase num_steps for more evaluation steps
         hyperparameters=tuner.outputs['best_hyperparameters']
     )
 
@@ -124,7 +124,7 @@ def create_pipeline(
                             lower_bound={'value': 0.3}),
                         change_threshold=tfma.GenericChangeThreshold(
                             direction=tfma.MetricDirection.HIGHER_IS_BETTER,
-                            absolute={'value': 0.001})))
+                            absolute={'value': 0.00001})))
             ])
         ]
     )

@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     # Create and run a pipeline job in GCP Vertex AI
     job = aiplatform.PipelineJob(
-        template_path='./template/' + PIPELINE_NAME + ".json",
+        template_path=PIPELINE_NAME + ".json",
         display_name=PIPELINE_NAME
     )
     job.run(sync=False)

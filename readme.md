@@ -412,7 +412,7 @@ Configure a service account with the necessary permissions to interact with Goog
 
 On your local machine, run the following in terminal:
 
-python kubeflow_dag_runner.py
+```python kubeflow_dag_runner.py```
 
 This triggers the build process and pushes the pipeline code to Vertex AI for processing.
 

@@ -17,7 +17,7 @@ The source of the dataset is Kaggle and the link is: <https://www.kaggle.com/dat
 9. Python
 10. Numpy
 11. Pandas
-12. Scikit Learn
+12. Kubeflow Pipelines
 13. GCP
 14. Vertex AI
 15. Google Cloud Container Registry

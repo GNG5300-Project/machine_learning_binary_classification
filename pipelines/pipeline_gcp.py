@@ -20,9 +20,13 @@ from tfx.components import Evaluator
 from tfx.components import Pusher
 from tfx.proto import pusher_pb2
 
+# Paths to module files
 transformation_module = 'transformer.py'
 tuner_module = 'tuner.py'
 trainer_module = 'trainer.py'
+
+# Function to create a TFX pipeline
+
 
 def create_pipeline(
     pipeline_name,
@@ -33,9 +37,9 @@ def create_pipeline(
     beam_pipeline_args=None,
     metadata_connection_config=None
 ):
-
     components = []
-    # example gen starts
+
+    # ExampleGen component to ingest data from CSV files and split into train/eval sets
     output = example_gen_pb2.Output(
         split_config=example_gen_pb2.SplitConfig(splits=[
             example_gen_pb2.SplitConfig.Split(name='train', hash_buckets=7),
@@ -43,36 +47,31 @@ def create_pipeline(
         ]))
     example_gen = CsvExampleGen(input_base=data_path, output_config=output)
     components.append(example_gen)
-    # example gen end
 
-    # statistics gen
+    # StatisticsGen component to compute statistics over data
     statistics_gen = StatisticsGen(examples=example_gen.outputs["examples"])
     components.append(statistics_gen)
-    # statistics gen end
 
-    # schema gen
+    # SchemaGen component to infer schema from statistics
     schema_gen = SchemaGen(statistics=statistics_gen.outputs["statistics"])
     components.append(schema_gen)
-    # schema gen end
 
-    # validator
+    # ExampleValidator component to validate data based on schema
     validator = ExampleValidator(
         statistics=statistics_gen.outputs["statistics"],
         schema=schema_gen.outputs["schema"]
     )
     components.append(validator)
-    # validator ends
 
-    # transform
+    # Transform component to preprocess data using provided transformation module
     transform = Transform(
         examples=example_gen.outputs["examples"],
         schema=schema_gen.outputs["schema"],
         module_file=module_path + transformation_module
     )
     components.append(transform)
-    # transform ends
 
-    # tuner
+    # Tuner component to tune hyperparameters using transformed data
     tuner = Tuner(
         examples=transform.outputs['transformed_examples'],
         transform_graph=transform.outputs['transform_graph'],
@@ -82,34 +81,29 @@ def create_pipeline(
         module_file=module_path + tuner_module
     )
     components.append(tuner)
-    # tuner ends
 
-    # trainer starts
+    # Trainer component to train the model using tuned hyperparameters and transformed data
     trainer = Trainer(
-        module_file=module_path + trainer_module,  # Path to your trainer module
-        custom_executor_spec=executor_spec.ExecutorClassSpec(GenericExecutor),  # Executor specification
-        examples=transform.outputs['transformed_examples'],  # Transformed examples from previous component
-        transform_graph=transform.outputs['transform_graph'],  # Transform graph from previous component
-        schema=schema_gen.outputs['schema'],  # Schema from schema gen component
-        train_args=trainer_pb2.TrainArgs(num_steps=2000),  # Increase num_steps for more training epochs/steps
-        eval_args=trainer_pb2.EvalArgs(num_steps=1000),  # Increase num_steps for more evaluation steps
+        module_file=module_path + trainer_module,
+        custom_executor_spec=executor_spec.ExecutorClassSpec(GenericExecutor),
+        examples=transform.outputs['transformed_examples'],
+        transform_graph=transform.outputs['transform_graph'],
+        schema=schema_gen.outputs['schema'],
+        train_args=trainer_pb2.TrainArgs(num_steps=2000),
+        eval_args=trainer_pb2.EvalArgs(num_steps=1000),
         hyperparameters=tuner.outputs['best_hyperparameters']
     )
-
     components.append(trainer)
-    # trainer ends
 
-    # model resolver begins
-    # Get the latest blessed model for model validation.
+    # Resolver component to get the latest blessed model for model validation
     model_resolver = Resolver(
         strategy_class=latest_blessed_model_resolver.LatestBlessedModelResolver,
         model=Channel(type=Model),
         model_blessing=Channel(type=ModelBlessing)
     ).with_id('latest_blessed_model_resolver')
     components.append(model_resolver)
-# model resolver ends
 
-# Evaluator starts
+    # Evaluator component to evaluate the model
     eval_config = tfma.EvalConfig(
         model_specs=[tfma.ModelSpec(label_key='Default_xf',
                                     preprocessing_function_names=['transform_features'])],
@@ -128,7 +122,6 @@ def create_pipeline(
             ])
         ]
     )
-
     evaluator = Evaluator(
         examples=example_gen.outputs['examples'],
         model=trainer.outputs['model'],
@@ -136,20 +129,18 @@ def create_pipeline(
         eval_config=eval_config
     )
     components.append(evaluator)
-# evaluator ends
 
-# pusher
+    # Pusher component to push the validated model to a serving directory
     pusher = Pusher(
         model=trainer.outputs['model'],
-        # disabled due to reduced steps for demonstration purposes
         model_blessing=evaluator.outputs['blessing'],
         push_destination=pusher_pb2.PushDestination(
             filesystem=pusher_pb2.PushDestination.Filesystem(
                 base_directory=serving_dir))
     )
     components.append(pusher)
-# pusher ends
 
+    # Return the assembled TFX pipeline
     return pipeline.Pipeline(
         pipeline_name=pipeline_name,
         pipeline_root=pipeline_root,

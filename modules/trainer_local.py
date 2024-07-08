@@ -8,12 +8,15 @@ from tfx_bsl.public import tfxio
 from typing import List
 import logging
 import keras_tuner
-from absl import logging
+# Renamed to avoid conflict with logging module
+from absl import logging as absl_logging
 import numpy as np
-import os
+import os  # Import os module for path handling
 
 _BATCH_SIZE = 128
-_TENSOR_BOARD_LOG_DIR = os.path.join('.', '../tb')
+_TENSOR_BOARD_LOG_DIR = os.path.join('.', 'tb')  # TensorBoard log directory
+
+# Define categorical and numerical columns along with constants
 CATEGORICAL_COLUMNS = [
     'Education', 'EmploymentType', 'MaritalStatus',
     'LoanPurpose', 'HasMortgage', 'HasDependents', 'HasCoSigner'
@@ -31,10 +34,12 @@ NUM_OOV_BUCKETS = 2
 
 
 def transformed_name(key):
+    """Transforms a feature name into its transformed form."""
     return key + '_xf'
 
 
 def _gzip_reader_fn(filenames):
+    """Returns a TFRecordDataset for GZIP-compressed files."""
     return tf.data.TFRecordDataset(filenames, compression_type='GZIP')
 
 
@@ -42,6 +47,7 @@ def _input_fn(file_pattern: List[str],
               data_accessor: DataAccessor,
               schema: schema_pb2.Schema,
               batch_size: int = 200) -> tf.data.Dataset:
+    """Creates a TF dataset from file patterns and schema."""
     processed = data_accessor.tf_dataset_factory(
         file_pattern,
         tfxio.TensorFlowDatasetOptions(
@@ -53,13 +59,15 @@ def _input_fn(file_pattern: List[str],
 def _get_hyperparameters() -> keras_tuner.HyperParameters:
     """Returns hyperparameters for building Keras model."""
     hp = keras_tuner.HyperParameters()
-    # Define search space.
+    # Define search space for hyperparameters
     hp.Choice('learning_rate', [1e-5, 1e-4, 1e-3, 1e-2], default=1e-2)
     hp.Int('hidden_layers', min_value=1, max_value=4, default=1)
     return hp
 
 
 def _build_keras_model(hparams: keras_tuner.HyperParameters) -> tf.keras.Model:
+    """Builds a Keras model based on hyperparameters."""
+    # Define input layers for numerical and categorical features
     input_numeric = [
         tf.keras.layers.Input(name=transformed_name(colname), shape=(1,), dtype=tf.float32) for colname in NUMERICAL_COLUMNS
     ]
@@ -70,22 +78,24 @@ def _build_keras_model(hparams: keras_tuner.HyperParameters) -> tf.keras.Model:
 
     input_layers = input_numeric + input_categorical
 
+    # Concatenate numerical and categorical inputs
     input_numeric_concat = tf.keras.layers.concatenate(input_numeric)
     input_categorical_concat = tf.keras.layers.concatenate(input_categorical)
-
     deep = tf.keras.layers.concatenate(
         [input_numeric_concat, input_categorical_concat])
 
+    # Build deep layers based on hyperparameter settings
     num_hidden_layers = hparams.get('hidden_layers')
     hp_learning_rate = hparams.get('learning_rate')
-
     for i in range(num_hidden_layers):
         num_nodes = hparams.Int('unit'+str(i), min_value=8,
                                 max_value=256, step=64, default=64)
         deep = tf.keras.layers.Dense(num_nodes, activation='relu')(deep)
 
+    # Output layer for binary classification
     outputs = tf.keras.layers.Dense(1, activation='sigmoid')(deep)
 
+    # Compile model with metrics and optimizer
     model = keras.Model(inputs=input_layers, outputs=outputs)
     model.compile(
         loss='binary_crossentropy',
@@ -143,6 +153,7 @@ def _get_transform_features_signature(model, tf_transform_output):
 
 
 def dataset_to_numpy(dataset):
+    """Converts a TensorFlow dataset to numpy arrays for features and labels."""
     features, labels = [], []
 
     for feature, label in dataset.as_numpy_iterator():
@@ -154,10 +165,11 @@ def dataset_to_numpy(dataset):
 
 # TFX Trainer will call this function.
 def run_fn(fn_args: FnArgs):
-
+    """Function called by TFX Trainer component to train the model."""
     tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
     schema = tf_transform_output.transformed_metadata.schema
 
+    # Create train and eval datasets
     train_dataset = _input_fn(
         fn_args.train_files,
         fn_args.data_accessor,
@@ -170,6 +182,7 @@ def run_fn(fn_args: FnArgs):
         schema,
         batch_size=_BATCH_SIZE)
 
+    # Load hyperparameters or get default values
     if fn_args.hyperparameters:
         hparams = keras_tuner.HyperParameters.from_config(
             fn_args.hyperparameters)
@@ -177,6 +190,7 @@ def run_fn(fn_args: FnArgs):
         hparams = _get_hyperparameters()
     logging.info('HyperParameters for training: %s', hparams.get_config())
 
+    # Use MirroredStrategy for distributed training
     mirrored_strategy = tf.distribute.MirroredStrategy()
     with mirrored_strategy.scope():
         model = _build_keras_model(hparams)
@@ -185,6 +199,7 @@ def run_fn(fn_args: FnArgs):
     tensorboard_callback = tf.keras.callbacks.TensorBoard(
         log_dir=tb_log_dir, update_freq='epoch')
 
+    # Train the model
     model.fit(
         train_dataset,
         steps_per_epoch=fn_args.train_steps,
@@ -194,11 +209,14 @@ def run_fn(fn_args: FnArgs):
         class_weight={0: 0.5681818181818182, 1: 4.166666666666667}
     )
 
+    # Define serving signatures for TF Serving
     signatures = {
         'serving_default':
             _get_tf_examples_serving_signature(model, tf_transform_output),
         'transform_features':
             _get_transform_features_signature(model, tf_transform_output)
     }
+
+    # Save the trained model with serving signatures
     model.save(fn_args.serving_model_dir,
                save_format='tf', signatures=signatures)

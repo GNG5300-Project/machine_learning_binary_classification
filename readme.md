@@ -35,41 +35,25 @@ The source of the dataset is Kaggle and the link is: <https://www.kaggle.com/dat
 
 This dataset represents information about individual loan applications, containing various features related to the applicant's personal, financial, and loan-specific details. Here's a detailed explanation of each column:
 
-**LoanID:** A unique identifier for each loan application. Example: I38PQUQS96.
+1. **LoanID:** A unique identifier for each loan application. Example: I38PQUQS96.
+2. **Age:** The age of the applicant. Example: 56 years old.
+3. **Income:** The annual income of the applicant in dollars. Example: $85,994.
+4. **LoanAmount:** The amount of money requested or approved for the loan in dollars. Example: $50,587.
+5. **CreditScore:** The credit score of the applicant, a numerical expression based on the applicant's credit files, to represent the creditworthiness of the applicant. Example: 520.
+6. **MonthsEmployed:** The number of months the applicant has been employed in their current job. Example: 80 months (or approximately 6 years and 8 months).
+7. **NumCreditLines:** The number of credit lines (credit cards, loans, etc.) that the applicant has. Example: 4 credit lines.
+8. **InterestRate:** The interest rate on the loan as a percentage. Example: 15.23%.
+9. **LoanTerm:** The term of the loan in months. Example: 36 months (or 3 years).
+10. **DTIRatio (Debt-to-Income Ratio):** The ratio of the applicant's monthly debt payments to their monthly income. Example: 0.44 (44%).
+11. **Education:** The highest level of education attained by the applicant. Example: Bachelor's degree.
+12. **EmploymentType:** The type of employment of the applicant. Example: Full-time.
+13. **MaritalStatus:** The marital status of the applicant. Example: Divorced.
+14. **HasMortgage:** A binary indicator (Yes/No) showing whether the applicant has a mortgage. Example: Yes.
+15. **HasDependents:** A binary indicator (Yes/No) showing whether the applicant has dependents. Example: Yes.
+16. **LoanPurpose:** The purpose for which the loan is being taken. Example: "Other."
+17. **HasCoSigner:** A binary indicator (Yes/No) showing whether the loan has a co-signer. Example: Yes.
+18. **Default:** The target (LABEL) variable indicating whether the loan has defaulted (1) or not (0). Example: 0.
 
-**Age**: The age of the applicant. Example: 56 years old.
-
-**Income**: The annual income of the applicant in dollars. Example: $85,994.
-
-**LoanAmount**: The amount of money requested or approved for the loan in dollars. Example: $50,587.
-
-**CreditScore**: The credit score of the applicant, a numerical expression based on the applicant's credit files, to represent the creditworthiness of the applicant. Example: 520.
-
-**MonthsEmployed**: The number of months the applicant has been employed in their current job. Example: 80 months (or approximately 6 years and 8 months).
-
-**NumCreditLines**: The number of credit lines (credit cards, loans, etc.) that the applicant has. Example: 4 credit lines.
-
-**InterestRate**: The interest rate on the loan as a percentage. Example: 15.23%.
-
-**LoanTerm**: The term of the loan in months. Example: 36 months (or 3 years).
-
-**DTIRatio (Debt-to-Income Ratio)**: The ratio of the applicant's monthly debt payments to their monthly income. Example: 0.44 (44%).
-
-**Education**: The highest level of education attained by the applicant. Example: Bachelor's degree.
-
-**EmploymentType**: The type of employment of the applicant. Example: Full-time.
-
-**MaritalStatus**: The marital status of the applicant. Example: Divorced.
-
-**HasMortgage**: A binary indicator (Yes/No) showing whether the applicant has a mortgage. Example: Yes.
-
-**HasDependents**: A binary indicator (Yes/No) showing whether the applicant has dependents. Example: Yes.
-
-**LoanPurpose**: The purpose for which the loan is being taken. Example: "Other."
-
-**HasCoSigner**: A binary indicator (Yes/No) showing whether the loan has a co-signer. Example: Yes.
-
-**Default**: The target (LABEL) variable indicating whether the loan has defaulted (1) or not (0). Example: 0.
 
 # The Goal of This Project
 

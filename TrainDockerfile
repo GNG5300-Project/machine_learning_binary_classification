@@ -1,0 +1,38 @@
+# Use the official Python 3.10.14 image from the Docker Hub
+FROM python:3.10.14
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Create a working directory
+WORKDIR /app
+
+# Copy the requirements file into the container
+COPY requirements.txt /app/
+
+# Install dependencies
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+
+# Create the /app/models/local/ directory
+RUN mkdir -p /app/models/local/
+
+
+# Copy specific folders into the container
+COPY dataset/ /app/dataset/
+COPY extras/ /app/extras/
+COPY local_build/ /app/local_build/
+COPY modules/ /app/modules/
+COPY pipelines/ /app/pipelines/
+COPY tb/ /app/tb/
+COPY generate_json_tf_request.py /app/
+COPY kubeflow_dag_runner.py /app/
+COPY local_dag_runner.py /app/
+COPY read_env.py /app/
+COPY serve_with_tf_serving.py /app/
+COPY serve_tf_serving.bash /app/
+COPY .env /app/
+# Define the command to run the local_dag_runner.py  pipeline training script
+CMD ["python", "local_dag_runner.py"]

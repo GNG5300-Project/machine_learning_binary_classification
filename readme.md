@@ -383,7 +383,7 @@ This guide will walk you through the process of running the machine learning tra
 ### To use the script:
 1. cd into the root directory of the project
 2. Add execution rights to the script by running the following in the terminal  ```chmod +x ./train_with_docker.sh```
-3. Now run the shell script with ./train_with_dokcer.sh 
+3. Now run the shell script with ```./train_with_docker.sh ```
 
 The process will print all the steps from building to model training to the terminal and exit once complete.
 # Training, Serving and Testing on Vertex AI

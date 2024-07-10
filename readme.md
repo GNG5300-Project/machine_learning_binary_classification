@@ -150,6 +150,9 @@ Components:
 
 Advantages: This method is more sample-efficient compared to random search and grid search, making it suitable for scenarios with limited computational resources.
 
+#### Correcting for Imbalanced Data
+During our initial exploration of the data using Jupyter notebook we realized that the dataset was imbalanced. The number of default greatly overshadowed the number of non-default data. To correct for this we chose to use the weighting option. We calculated and assigned weights to the dataset to handle for this issue in both the tuner and trainer. 
+
 #### Integration with TFX Pipeline
 
 **Description**: The hyperparameter tuning step is integrated into the TFX pipeline to ensure that the tuned model is used for further training and evaluation.
@@ -373,6 +376,16 @@ curl -d '{
   ]
 }' -X POST http://localhost:8501/v1/models/1720308768:predict
 ```
+# Training the Model Inside a Docker Container
+
+This guide will walk you through the process of running the machine learning training code in a Docker container using a Dockerfile (TrainDockerfile). We  have already written all the steps involved in a bash script called 'train_with_docker.sh'. The script will build the docker image locally and use it train the model and finally write it into the mapped volume - models/local/
+
+### To use the script:
+1. cd into the root directory of the project
+2. Add execution rights to the script by running the following in the terminal  ```chmod +x ./train_with_docker.sh```
+3. Now run the shell script with ./train_with_dokcer.sh 
+
+The process will print all the steps from building to model training to the terminal and exit once complete.
 # Training, Serving and Testing on Vertex AI
 
 Integrate GitHub with Google Container Registry: This step enables building a custom image essential for the training process on Vertex AI. The image includes all dependencies specified in requirements.txt, which are copied into the Docker container during the build phase.
